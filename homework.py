@@ -48,7 +48,7 @@ logger.addHandler(handler)
 
 
 def send_message(bot, message):
-    """Отправляет сообщение"""
+    """Отправляет сообщение."""
     bot = telegram.Bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     logging.info(f'отправлено сообщение: "{message}"')
     return bot
@@ -72,7 +72,7 @@ def get_api_answer(current_timestamp):
 
 
 def check_response(response):
-    """Проверяет запрос API на корректность работы,
+    """Проверяет запрос API на корректность работы.
     возвращая список домашних работ.
     """
     homework = response['homeworks']
@@ -85,7 +85,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    """Функция извлекает из информации о конкретной домашней работе,
+    """Функция извлекает из информации о конкретной домашней работе.
     статус этой работы.
     """
     homework_name = homework['homework_name']
