@@ -96,12 +96,12 @@ def parse_status(homework):
     """Функция извлекает из информации о конкретной домашней работе.
     статус этой работы.
     """
-    homework_name = homework['homework_name']
-    homework_status = homework['status']
     if 'homework_name' not in homework:
         raise KeyError('Отсутствует ключ "homework_name" в ответе API')
     if 'status' not in homework:
-        raise Exception('Отсутствует ключ "status" в ответе API')
+        raise TypeError('Отсутствует ключ "status" в ответе API')
+    homework_name = homework['homework_name']
+    homework_status = homework['status']
     if homework_status not in HOMEWORK_STATUSES:
         message = f'ключ {homework_status} не найден'
         logging.error(message)
