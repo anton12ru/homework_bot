@@ -36,22 +36,21 @@ logging.basicConfig(
         '%(asctime)s - %(name)s - %(levelname)s -'
         '%(message)s - %(funcName)s - %(lineno)d'
     ),
-    level=logging.INFO,
+    level=logging.DEBUG,
     filename='main.log',
     encoding='UTF-8',
     filemode='a',
 )
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.CRITICAL)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(stream=sys.stdout)
 logger.addHandler(handler)
 
 
 def send_message(bot, message):
     """Отправляет сообщение."""
-    bot = telegram.Bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     logging.info(f'отправлено сообщение: "{message}"')
-    return bot
 
 
 def get_api_answer(current_timestamp):
@@ -63,7 +62,7 @@ def get_api_answer(current_timestamp):
     except Exception as error:
         message = f'Ошибка при запросе к основному API: {error}'
         logging.error(message)
-        raise Exception(message)
+        raise IndexError(message)
     if response.status_code != HTTPStatus.OK:
         message = f'код запроса API не равен {HTTPStatus.OK}'
         logging.error(message)
@@ -75,12 +74,21 @@ def check_response(response):
     """Проверяет запрос API на корректность работы.
     возвращая список домашних работ.
     """
-    homework = response['homeworks']
-
+    try:
+        homework = response['homeworks']
+    except KeyError:
+        logger.error('Не найден ключ "homeworks"')
+        raise KeyError('Не найден ключ "homeworks"')
     if not isinstance(homework, list):
         message = 'Ответ от API не может быть списком'
         logging.error(message)
-        raise Exception(message)
+        raise TypeError(message)
+    try:
+        homework = homework[0]
+    except IndexError:
+        message = 'На проверке нет домашней работы'
+        logging.error(message)
+        raise IndexError(message)
     return homework
 
 
@@ -90,9 +98,13 @@ def parse_status(homework):
     """
     homework_name = homework['homework_name']
     homework_status = homework['status']
-    if homework_status is None:
-        msg = f'ключ {homework_status} не найден'
-        logging.error(msg)
+    if 'homework_name' not in homework:
+        raise KeyError('Отсутствует ключ "homework_name" в ответе API')
+    if 'status' not in homework:
+        raise Exception('Отсутствует ключ "status" в ответе API')
+    if homework_status not in HOMEWORK_STATUSES:
+        message = f'ключ {homework_status} не найден'
+        logging.error(message)
         raise HWStatusRaise(f'ключ {homework_status} не найден')
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -117,19 +129,19 @@ def main():
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            current_timestamp = response.get('current_date')
+            current_timestamp = response['current_date']
             homework = check_response(response)
             if homework:
-                # for homework_result in homework:
                 parse_status_result = parse_status(homework)
                 send_message(bot, parse_status_result)
             time.sleep(RETRY_TIME)
 
         except Exception as error:
-            message = f'Сбой в работе программы: {error}'
+            message = str(error)
             logger.error(message)
             bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             time.sleep(RETRY_TIME)
+            raise Exception(message)
 
 
 if __name__ == '__main__':
