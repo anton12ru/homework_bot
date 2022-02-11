@@ -127,15 +127,14 @@ def check_tokens():
     }
 
     try:
-        if all(ALL_TOKENS.values()):
-            return True
+        return all(ALL_TOKENS.values())
     except Exception:
-        if ALL_TOKENS.values() is None:
-            for token_name, token in ALL_TOKENS.items():
+        for token_name, token in ALL_TOKENS.items():
+            if token in ('', None):
                 logger.critical(
                     'Отсутствует обязательная переменная окружения:'
-                    f'{token} в токене: "{token_name}"')
-            return False
+                    f'"{token_name}"')
+        return False
 
 
 def main():
