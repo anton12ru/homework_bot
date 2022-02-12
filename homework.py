@@ -66,10 +66,12 @@ def get_api_answer(current_timestamp):
         message = f'Ошибка при запросе к основному API: {error}'
         logging.error(message)
         raise IndexError(message)
+
     if response.status_code != HTTPStatus.OK:
         message = f'код запроса API не равен {HTTPStatus.OK}'
-        logging.error(message)
+        logger.error(message)
         raise requests.HTTPError(message)
+
     try:
         response.json()
     except Exception:
@@ -89,6 +91,7 @@ def check_response(response):
     except KeyError:
         logger.error('Не найден ключ "homeworks"')
         raise KeyError('Не найден ключ "homeworks"')
+
     if not isinstance(homework, list):
         message = 'Ответ от API не может быть списком'
         logging.error(message)
@@ -100,20 +103,23 @@ def parse_status(homework):
     """Функция извлекает из информации о конкретной домашней работе.
     статус этой работы.
     """
-    if 'homework_name' not in homework:
-        logging.error('ключ не соотвествует ключу "homework_name"')
-        raise KeyError('Отсутствует ключ "homework_name" в ответе API')
-    if 'status' not in homework:
-        logging.error('ключ не соотвествует ключу "status"')
-        raise KeyError('Отсутствует ключ "status" в ответе API')
-
     homework_name = homework['homework_name']
+    if homework_name is None:
+        logger.error(
+            f'ключ {homework_name} не соотвествует ключу "homework_name"')
+        raise KeyError('Отсутствует ключ "homework_name" в ответе API')
+
     homework_status = homework['status']
+    if homework_status is None:
+        logger.error(
+            f'ключ {homework_status} не соотвествует ключу "status"')
+        raise KeyError('Отсутствует ключ "status" в ответе API')
 
     if homework_status not in HOMEWORK_STATUSES:
         message = f'ключ {homework_status} не найден'
         logging.error(message)
         raise HWStatusRaise(message)
+
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -143,9 +149,11 @@ def main():
         bot = telegram.Bot(TELEGRAM_TOKEN)
         bot.get_me()
         current_timestamp = int(time.time())
+
     except telegram.error.TelegramError as telegram_error:
         logger.error(f'Ошибка в телеграм боте {telegram_error}')
         exit()
+
     if not check_tokens():
         exit()
 
