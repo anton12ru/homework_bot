@@ -30,18 +30,20 @@ HOMEWORK_STATUSES = {
 
 
 logging.basicConfig(
-    format=(
-        '%(asctime)s - %(name)s - %(levelname)s -'
-        '%(message)s - %(funcName)s - %(lineno)d'
-    ),
+    format=('%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
     level=logging.DEBUG,
-    filename=os.path.expanduser('~/main.log'),
+    filename=os.path.expanduser('/Dev/homework_bot/main.log'),
     encoding='UTF-8',
-    filemode='w',
+    filemode='a',
 )
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(stream=sys.stdout)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s -'
+    '%(message)s - %(funcName)s - %(lineno)d'
+)
+handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
@@ -51,7 +53,7 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.info(f'отправлено сообщение: "{message}"')
     except telegram.error.TelegramError:
-        logging.error('Не было доставлено сообщение в чат')
+        logger.error('Не было доставлено сообщение в чат')
         raise telegram.error.TelegramError(
             'Не было доставлено сообщение в чат')
 
@@ -65,16 +67,24 @@ def get_api_answer(current_timestamp):
     except Exception as error:
         message = f'Ошибка при запросе к основному API: {error}'
         logging.error(message)
-        raise IndexError(message)
+        logger.error(message)
+        raise Exception(message)
 
     if response.status_code != HTTPStatus.OK:
         message = f'код запроса API не равен {HTTPStatus.OK}'
         logger.error(message)
         raise requests.HTTPError(message)
 
-    try:
-        response.json()
-    except Exception:
+    # try:
+    #     results = response.json()
+    #     if response.status_code != requests.codes.ok:
+    # except Exception:
+    #     logging.error('В ответе от запроса API не может быть пустым')
+    #     raise requests.exceptions.JSONDecodeError(
+    #         'В ответе от запроса API не может быть пустым'
+    #     )
+
+    if response.json() == []:
         logging.error('В ответе от запроса API не может быть пустым')
         raise requests.exceptions.JSONDecodeError(
             'В ответе от запроса API не может быть пустым'
@@ -94,7 +104,7 @@ def check_response(response):
 
     if not isinstance(homework, list):
         message = 'Ответ от API не может быть списком'
-        logging.error(message)
+        logger.error(message)
         raise TypeError(message)
     return homework
 
@@ -107,13 +117,15 @@ def parse_status(homework):
     if homework_name is None:
         logger.error(
             f'ключ {homework_name} не соотвествует ключу "homework_name"')
-        raise KeyError('Отсутствует ключ "homework_name" в ответе API')
+        raise KeyError(
+            f'ключ {homework_name} не соотвествует ключу "homework_name"')
 
     homework_status = homework['status']
     if homework_status is None:
         logger.error(
             f'ключ {homework_status} не соотвествует ключу "status"')
-        raise KeyError('Отсутствует ключ "status" в ответе API')
+        raise KeyError(
+            f'ключ {homework_status} не соотвествует ключу "status"')
 
     if homework_status not in HOMEWORK_STATUSES:
         message = f'ключ {homework_status} не найден'
@@ -147,7 +159,7 @@ def main():
     """Основная логика работы бота."""
     try:
         bot = telegram.Bot(TELEGRAM_TOKEN)
-        bot.get_me()
+        bot.get_chat(TELEGRAM_CHAT_ID)
         current_timestamp = int(time.time())
 
     except telegram.error.TelegramError as telegram_error:
@@ -160,16 +172,15 @@ def main():
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            homework = check_response(response)
-
-            if homework:
+            homeworks = check_response(response)
+            for homework in homeworks:
                 parse_status_result = parse_status(homework)
                 send_message(bot, parse_status_result)
             current_timestamp = response.get('current_date')
             time.sleep(RETRY_TIME)
 
         except Exception as error:
-            message = str(error)
+            message = f'Сбой в работе програмы: {error}'
             logger.error(message)
             bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             time.sleep(RETRY_TIME)
