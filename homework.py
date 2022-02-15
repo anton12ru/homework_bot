@@ -32,7 +32,7 @@ HOMEWORK_STATUSES = {
 logging.basicConfig(
     format=('%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
     level=logging.DEBUG,
-    filename=os.path.expanduser('/Dev/homework_bot/main.log'),
+    filename=os.path.expanduser('main.log'),
     encoding='UTF-8',
     filemode='a',
 )
